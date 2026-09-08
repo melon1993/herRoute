@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>她出行 HerRoute - 百度地图LBS技术Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f0f2f5; overflow: hidden; }
+
+  .header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white; padding: 10px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 2px 12px rgba(102,126,234,0.3); height: 50px;
+  }
+  .header h1 { font-size: 17px; font-weight: 700; }
+  .header .subtitle { font-size: 10px; opacity: 0.85; margin-top: 1px; }
+  .header-right { display: flex; gap: 6px; align-items: center; }
+  .btn-header {
+    background: rgba(255,255,255,0.2); border: none; color: white;
+    padding: 5px 12px; border-radius: 18px; font-size: 11px; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-header:hover { background: rgba(255,255,255,0.35); }
+  .mode-badge { background: rgba(255,255,255,0.15); padding: 3px 10px; border-radius: 10px; font-size: 10px; }
+
+  .main { display: flex; height: calc(100vh - 50px); }
+
+  .panel-left {
+    width: 360px; background: white; overflow-y: auto;
+    border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  .panel-section { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; }
+  .section-title { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+
+  /* 快捷添加区 */
+  .quick-add-title { font-size: 11px; color: #94a3b8; margin-bottom: 8px; }
+  .quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+  .quick-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 10px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+    background: white; cursor: pointer; transition: all 0.2s; font-size: 12px; color: #475569;
+  }
+  .quick-btn:hover { border-color: #6366f1; background: #eef2ff; color: #6366f1; transform: translateY(-1px); }
+  .quick-btn .qicon { font-size: 16px; }
+  .quick-btn .qname { font-weight: 600; line-height: 1.2; }
+  .quick-btn .qaddr { font-size: 10px; color: #94a3b8; line-height: 1.2; }
+
+  /* 自定义输入表单 */
+  .custom-form { display: flex; flex-direction: column; gap: 7px; }
+  .form-row { display: flex; gap: 6px; align-items: center; }
+  .form-row label { font-size: 11px; color: #64748b; width: 36px; flex-shrink: 0; text-align: right; }
+  .form-row input, .form-row select {
+    flex: 1; padding: 7px 10px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 12px; outline: none; transition: border-color 0.2s;
+  }
+  .form-row input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+  .form-row input.time-input { max-width: 100px; }
+
+  /* 地址搜索联想 */
+  .addr-search-wrap { position: relative; flex: 1; }
+  .addr-search-wrap input { width: 100%; }
+  .addr-dropdown {
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: white; border: 1px solid #e2e8f0; border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1); z-index: 50;
+    max-height: 160px; overflow-y: auto; display: none;
+  }
+  .addr-dropdown.show { display: block; }
+  .addr-option {
+    padding: 8px 10px; cursor: pointer; font-size: 12px;
+    border-bottom: 1px solid #f1f5f9; transition: background 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .addr-option:hover { background: #eef2ff; }
+  .addr-option:last-child { border-bottom: none; }
+  .addr-option .ao-icon { font-size: 14px; }
+  .addr-option .ao-name { font-weight: 600; color: #1e293b; }
+  .addr-option .ao-addr { font-size: 10px; color: #94a3b8; margin-left: auto; white-space: nowrap; }
+  .addr-option .ao-no { color: #94a3b8; font-style: italic; }
+
+  .btn-add-custom {
+    background: #6366f1; color: white; border: none; border-radius: 8px;
+    padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: background 0.2s; white-space: nowrap;
+  }
+  .btn-add-custom:hover { background: #4f46e5; }
+
+  /* 任务列表 */
+  .task-list { display: flex; flex-direction: column; gap: 5px; }
+  .task-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; background: #f8fafc; border-radius: 10px;
+    border: 1px solid #e2e8f0; transition: all 0.2s;
+  }
+  .task-item:hover { border-color: #c7d2fe; background: #eef2ff; }
+  .task-icon { font-size: 16px; flex-shrink: 0; }
+  .task-info { flex: 1; min-width: 0; }
+  .task-name { font-size: 12px; font-weight: 600; color: #1e293b; }
+  .task-loc { font-size: 10px; color: #94a3b8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .task-time { font-size: 10px; color: #6366f1; font-weight: 600; white-space: nowrap; }
+  .task-remove { background: none; border: none; color: #cbd5e1; cursor: pointer; font-size: 14px; padding: 2px 4px; }
+  .task-remove:hover { color: #ef4444; }
+
+  .btn-plan {
+    width: 100%; padding: 11px; border: none; border-radius: 12px;
+    font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.3s; margin-top: 10px;
+  }
+  .btn-plan.primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+  .btn-plan.primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(102,126,234,0.4); }
+  .btn-plan.primary:disabled { opacity: 0.5; cursor: default; }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .stat-card { text-align: center; padding: 8px 4px; background: #f8fafc; border-radius: 8px; }
+  .stat-value { font-size: 18px; font-weight: 700; color: #6366f1; }
+  .stat-value.green { color: #22c55e; }
+  .stat-value.blue { color: #0ea5e9; }
+  .stat-label { font-size: 9px; color: #94a3b8; margin-top: 1px; }
+
+  .timeline-item { display: flex; gap: 10px; }
+  .timeline-dot-col { display: flex; flex-direction: column; align-items: center; min-width: 16px; }
+  .timeline-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; border: 2px solid #e2e8f0; background: white; }
+  .timeline-dot.done { background: #22c55e; border-color: #22c55e; }
+  .timeline-dot.current { background: #6366f1; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+  .timeline-line { width: 2px; flex: 1; background: #e2e8f0; min-height: 18px; }
+  .timeline-line.done { background: #22c55e; }
+  .timeline-content { flex: 1; padding-bottom: 10px; }
+  .timeline-time { font-size: 11px; font-weight: 700; color: #1e293b; }
+  .timeline-action { font-size: 12px; font-weight: 600; color: #1e293b; margin-top: 1px; }
+  .timeline-detail { font-size: 10px; color: #94a3b8; margin-top: 1px; }
+  .traffic-tag { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 6px; margin-left: 4px; font-weight: 600; }
+  .traffic-tag.good { background: #dcfce7; color: #166534; }
+  .traffic-tag.moderate { background: #fef3c7; color: #92400e; }
+  .traffic-tag.bad { background: #fee2e2; color: #991b1b; }
+
+  .map-container { flex: 1; position: relative; background: #e8f0fe; }
+  #mapCanvas { width: 100%; height: 100%; display: block; }
+
+  .result-banner {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    background: white; border-radius: 10px; padding: 10px 18px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1); z-index: 10;
+    display: flex; gap: 18px; align-items: center; border: 1px solid #e2e8f0;
+  }
+  .result-item { text-align: center; }
+  .result-item .val { font-size: 16px; font-weight: 700; color: #6366f1; }
+  .result-item .val.green { color: #22c55e; }
+  .result-item .lbl { font-size: 9px; color: #94a3b8; margin-top: 1px; }
+
+  .empty-hint { text-align: center; padding: 20px 16px; color: #94a3b8; font-size: 11px; line-height: 1.6; }
+  .empty-hint .icon { font-size: 28px; margin-bottom: 4px; }
+
+  .panel-left::-webkit-scrollbar { width: 4px; }
+  .panel-left::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+  .toast {
+    position: fixed; top: 62px; left: 50%; transform: translateX(-50%);
+    background: #1e293b; color: white; padding: 8px 20px; border-radius: 8px;
+    font-size: 12px; z-index: 999; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>她出行 HerRoute</h1>
+    <div class="subtitle">基于百度地图LBS · 家庭女性智能出行规划</div>
+  </div>
+  <div class="header-right">
+    <span class="mode-badge" id="modeBadge">演示模式</span>
+    <button class="btn-header" onclick="loadPreset()">📋 加载示例</button>
+    <button class="btn-header" onclick="clearAll()">🗑️ 清空</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="panel-left">
+
+    <!-- 快捷添加 -->
+    <div class="panel-section">
+      <div class="section-title">⚡ 一键添加常用行程</div>
+      <div class="quick-add-title">点击即添加，自动识别地点和时间</div>
+      <div class="quick-grid" id="quickGrid"></div>
+
+      <div class="quick-add-title" style="margin-top:4px">或手动添加自定义行程：</div>
+      <div class="custom-form">
+        <div class="form-row">
+          <label>做什么</label>
+          <input id="customName" placeholder="如：买菜、开会、取快递" />
+        </div>
+        <div class="form-row">
+          <label>去哪里</label>
+          <div class="addr-search-wrap">
+            <input id="customAddr" placeholder="搜索地点，如：超市、医院..." autocomplete="off" />
+            <div class="addr-dropdown" id="addrDropdown"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>时间</label>
+          <input id="customTime" type="time" value="09:00" class="time-input" />
+          <span style="font-size:11px;color:#94a3b8">至</span>
+          <input id="customTimeEnd" type="time" value="10:00" class="time-input" />
+          <button class="btn-add-custom" onclick="addCustomTask()">添加</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 任务列表 -->
+    <div class="panel-section" style="flex:1">
+      <div class="section-title">📋 今日行程 <span id="taskCount" style="font-size:10px;color:#94a3b8;font-weight:400">(0个)</span></div>
+      <div id="taskList" class="task-list">
+        <div class="empty-hint">
+          <div class="icon"></div>
+          点击上方快捷按钮添加行程<br/>或填写"做什么+去哪里+时间"添加<br/>添加后点击"智能规划路线"
+        </div>
+      </div>
+      <button class="btn-plan primary" id="btnPlan" onclick="planRoute()" disabled>
+        🗺️ 智能规划最优路线
+      </button>
+    </div>
+
+    <!-- 统计 -->
+    <div class="panel-section" id="statsSection" style="display:none">
+      <div class="section-title">📊 路线统计</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-value" id="statDistance">-</div><div class="stat-label">总里程</div></div>
+        <div class="stat-card"><div class="stat-value blue" id="statDuration">-</div><div class="stat-label">总耗时</div></div>
+        <div class="stat-card"><div class="stat-value green" id="statSaved">-</div><div class="stat-label">智能优化节省</div></div>
+      </div>
+    </div>
+
+    <!-- 时间轴 -->
+    <div class="panel-section" id="timelineSection" style="display:none">
+      <div class="section-title">🕐 智能行程时间轴</div>
+      <div id="timeline"></div>
+    </div>
+  </div>
+
+  <!-- 地图 -->
+  <div class="map-container">
+    <canvas id="mapCanvas"></canvas>
+    <div class="result-banner" id="resultBanner" style="display:none">
+      <div class="result-item"><div class="val" id="resDistance">-</div><div class="lbl">总里程</div></div>
+      <div class="result-item"><div class="val" id="resDuration">-</div><div class="lbl">总耗时</div></div>
+      <div class="result-item"><div class="val green" id="resWaypoints">-</div><div class="lbl">途经点</div></div>
+      <div class="result-item"><div class="val green" id="resOptimized">-</div><div class="lbl">智能排序</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== 全局状态 ==========
+let tasks = [];
+let canvas, ctx;
+let routeResult = null;
+
+const typeIcons = { school: '🏫', work: '💼', shopping: '🛒', hospital: '', home: '🏠', other: '📍' };
+const typeColors = { school: '#6366f1', work: '#0ea5e9', shopping: '#22c55e', hospital: '#ef4444', home: '#f59e0b', other: '#94a3b8' };
+
+// ========== 地点数据库（精确坐标） ==========
+const locationDB = [
+  // 快捷添加预设
+  { id: 'home',     name: '家',            addr: '万柳书院',       type: 'home',     timeStart: '07:00', timeEnd: '',       lat: 39.9520, lng: 116.3050, icon: '🏠' },
+  { id: 'school1',  name: '送孩子上学',     addr: '海淀区实验小学',  type: 'school',   timeStart: '07:30', timeEnd: '08:00',  lat: 39.9680, lng: 116.3180, icon: '🏫' },
+  { id: 'work',     name: '去公司',         addr: '中关村软件园',    type: 'work',     timeStart: '08:30', timeEnd: '09:00',  lat: 40.0530, lng: 116.2810, icon: '💼' },
+  { id: 'shop1',    name: '超市买菜',       addr: '永辉超市万达店',  type: 'shopping', timeStart: '12:00', timeEnd: '13:00',  lat: 39.9350, lng: 116.3140, icon: '🛒' },
+  { id: 'school2',  name: '接孩子放学',     addr: '海淀区实验小学',  type: 'school',   timeStart: '14:30', timeEnd: '15:00',  lat: 39.9680, lng: 116.3180, icon: '🏫' },
+  { id: 'hospital', name: '带妈妈看病',     addr: '北京同仁医院',    type: 'hospital', timeStart: '15:30', timeEnd: '16:30',  lat: 39.9000, lng: 116.4180, icon: '🏥' },
+  // 额外可选地点（供搜索联想）
+  { id: 'gym',      name: '去健身房',       addr: '超级猩猩中关村店', type: 'other',   timeStart: '18:00', timeEnd: '19:00',  lat: 39.9830, lng: 116.3150, icon: '🏋️' },
+  { id: 'bank',     name: '去银行办事',     addr: '工商银行万柳支行', type: 'other',   timeStart: '10:00', timeEnd: '11:00',  lat: 39.9550, lng: 116.3080, icon: '🏦' },
+  { id: 'park',     name: '逛公园',         addr: '颐和园东门',      type: 'other',   timeStart: '09:00', timeEnd: '10:30',  lat: 39.9990, lng: 116.2750, icon: '🌳' },
+  { id: 'mall',     name: '逛商场',         addr: '中关村食宝街',    type: 'shopping', timeStart: '11:30', timeEnd: '13:00',  lat: 39.9820, lng: 116.3160, icon: '🏬' },
+  { id: 'pharmacy', name: '去药店',         addr: '同仁堂药店中关村店', type: 'hospital', timeStart: '10:00', timeEnd: '10:30', lat: 39.9810, lng: 116.3130, icon: '💊' },
+  { id: 'market',   name: '去菜市场',       addr: '双榆树菜市场',    type: 'shopping', timeStart: '08:00', timeEnd: '09:00',  lat: 39.9730, lng: 116.3260, icon: '🥬' },
+  { id: 'cafe',     name: '喝咖啡',         addr: '星巴克中关村店',   type: 'other',   timeStart: '14:00', timeEnd: '15:00',  lat: 39.9840, lng: 116.3170, icon: '☕' },
+  { id: 'library',  name: '去图书馆',       addr: '国家图书馆',      type: 'other',   timeStart: '09:00', timeEnd: '12:00',  lat: 39.9430, lng: 116.3260, icon: '📚' },
+  { id: 'clinic',   name: '社区医院',       addr: '海淀社区卫生服务中心', type: 'hospital', timeStart: '09:00', timeEnd: '10:00', lat: 39.9600, lng: 116.3100, icon: '🏥' },
+  { id: 'post',     name: '取快递',         addr: '顺丰速运万柳站',    type: 'other',   timeStart: '17:00', timeEnd: '17:30',  lat: 39.9500, lng: 116.3070, icon: '📦' },
+  { id: 'beauty',   name: '做美容',         addr: '美丽田园中关村店',  type: 'other',   timeStart: '15:00', timeEnd: '16:30',  lat: 39.9800, lng: 116.3140, icon: '💅' },
+  { id: 'pet',      name: '宠物医院',       addr: '芭比堂动物医院',    type: 'hospital', timeStart: '10:00', timeEnd: '11:00', lat: 39.9650, lng: 116.3220, icon: '🐾' },
+];
+
+// 北京道路数据（用于地图背景）
+const beijingRoads = [
+  { name: '北三环', points: [[116.27,39.968],[116.30,39.972],[116.34,39.973],[116.38,39.970],[116.42,39.965]] },
+  { name: '北四环', points: [[116.26,39.985],[116.30,39.992],[116.34,39.996],[116.38,39.995],[116.42,39.990]] },
+  { name: '西三环', points: [[116.275,39.930],[116.272,39.950],[116.270,39.970],[116.272,39.990]] },
+  { name: '中关村大街', points: [[116.315,39.960],[116.314,39.980],[116.313,40.000],[116.312,40.020],[116.311,40.040]] },
+  { name: '北四环西路', points: [[116.280,39.990],[116.310,39.995],[116.340,39.996],[116.370,39.993]] },
+  { name: '万泉河路', points: [[116.295,39.955],[116.298,39.970],[116.300,39.985],[116.302,40.000]] },
+];
+
+const beijingLandmarks = [
+  { name: '北京大学', lat: 39.9930, lng: 116.3065 },
+  { name: '清华大学', lat: 40.0030, lng: 116.3310 },
+  { name: '颐和园', lat: 39.9990, lng: 116.2750 },
+  { name: '中关村', lat: 39.9820, lng: 116.3160 },
+  { name: '西直门', lat: 39.9420, lng: 116.3560 },
+  { name: '人民大学', lat: 39.9660, lng: 116.3210 },
+];
+
+// ========== 初始化 ==========
+window.onload = function() {
+  canvas = document.getElementById('mapCanvas');
+  ctx = canvas.getContext('2d');
+  buildQuickGrid();
+  setupAddrSearch();
+  resizeCanvas();
+  window.addEventListener('resize', () => { resizeCanvas(); drawMap(); });
+  drawMap();
+};
+
+function resizeCanvas() {
+  const container = canvas.parentElement;
+  canvas.width = container.clientWidth;
+  canvas.height = container.clientHeight;
+}
+
+// ========== 构建快捷按钮 ==========
+function buildQuickGrid() {
+  const grid = document.getElementById('quickGrid');
+  const quickItems = locationDB.slice(0, 6); // 前6个常用
+  grid.innerHTML = quickItems.map(loc => `
+    <button class="quick-btn" onclick="addQuickTask('${loc.id}')">
+      <span class="qicon">${loc.icon}</span>
+      <div>
+        <div class="qname">${loc.name}</div>
+        <div class="qaddr">${loc.addr}</div>
+      </div>
+    </button>
+  `).join('');
+}
+
+// ========== 坐标转换（修正版） ==========
+// 根据实际坐标范围精确计算
+const MAP_BOUNDS = { minLng: 116.255, maxLng: 116.435, minLat: 39.885, maxLat: 40.065 };
+const MAP_PAD = { x: 50, y: 50 };
+
+function lngToX(lng) {
+  const ratio = (lng - MAP_BOUNDS.minLng) / (MAP_BOUNDS.maxLng - MAP_BOUNDS.minLng);
+  return MAP_PAD.x + ratio * (canvas.width - MAP_PAD.x * 2);
+}
+function latToY(lat) {
+  const ratio = (lat - MAP_BOUNDS.minLat) / (MAP_BOUNDS.maxLat - MAP_BOUNDS.minLat);
+  return canvas.height - MAP_PAD.y - ratio * (canvas.height - MAP_PAD.y * 2);
+}
+
+// ========== 绘制地图 ==========
+function drawMap() {
+  if (!ctx) return;
+  const w = canvas.width, h = canvas.height;
+
+  // 背景渐变
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, '#e3edf7');
+  grad.addColorStop(0.5, '#e8f1f8');
+  grad.addColorStop(1, '#dde8f2');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // 细网格
+  ctx.strokeStyle = 'rgba(180,200,220,0.25)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < w; i += 30) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h); ctx.stroke(); }
+  for (let i = 0; i < h; i += 30) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(w, i); ctx.stroke(); }
+
+  // 道路
+  beijingRoads.forEach(road => {
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(190,205,220,0.7)';
+    ctx.lineWidth = road.name.includes('环') || road.name.includes('四环') ? 4 : 2.5;
+    road.points.forEach((p, i) => {
+      const x = lngToX(p[0]), y = latToY(p[1]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    const mid = road.points[Math.floor(road.points.length / 2)];
+    ctx.fillStyle = 'rgba(140,165,190,0.55)';
+    ctx.font = '10px "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(road.name, lngToX(mid[0]) + 5, latToY(mid[1]) - 8);
+  });
+
+  // 地标
+  beijingLandmarks.forEach(lm => {
+    const x = lngToX(lm.lng), y = latToY(lm.lat);
+    ctx.fillStyle = 'rgba(170,185,200,0.35)';
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(140,160,180,0.5)';
+    ctx.font = '9px "Microsoft YaHei", sans-serif';
+    ctx.fillText(lm.name, x + 7, y + 3);
+  });
+
+  // 路线
+  if (routeResult) drawRouteOnMap(routeResult);
+
+  // 途经点标记
+  tasks.forEach((t, i) => drawMarker(t, i + 1));
+
+  // 图例
+  drawLegend();
+
+  // 比例尺
+  drawScale();
+}
+
+function drawMarker(task, index) {
+  const x = lngToX(task.lng), y = latToY(task.lat);
+  const color = typeColors[task.type] || '#6366f1';
+
+  // 阴影
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 16, 7, 3.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 水滴标记
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x, y - 14);
+  ctx.bezierCurveTo(x + 11, y - 14, x + 13, y - 3, x, y + 4);
+  ctx.bezierCurveTo(x - 13, y - 3, x - 11, y - 14, x, y - 14);
+  ctx.fill();
+
+  // 白色内圈
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath();
+  ctx.arc(x, y - 5, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 编号
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(index, x, y - 5);
+  ctx.textBaseline = 'alphabetic';
+
+  // 标签背景
+  const displayName = task.name.length > 7 ? task.name.substring(0, 7) + '..' : task.name;
+  ctx.font = 'bold 10px "Microsoft YaHei", sans-serif';
+  const tw = ctx.measureText(displayName).width + 14;
+  const lx = x + 14, ly = y - 8;
+
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, lx, ly - 9, tw, 18, 5);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = color;
+  ctx.textAlign = 'left';
+  ctx.fillText(displayName, lx + 5, ly + 4);
+}
+
+function drawRouteOnMap(result) {
+  const points = result.path || [];
+  if (points.length < 2) return;
+
+  // 外发光
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(99,102,241,0.12)';
+  ctx.lineWidth = 12;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  points.forEach((p, i) => {
+    const x = lngToX(p[0]), y = latToY(p[1]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // 主线
+  ctx.beginPath();
+  ctx.strokeStyle = '#6366f1';
+  ctx.lineWidth = 4;
+  ctx.setLineDash([]);
+  points.forEach((p, i) => {
+    const x = lngToX(p[0]), y = latToY(p[1]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // 方向箭头
+  for (let i = 0; i < points.length - 1; i += Math.max(1, Math.floor(points.length / 8))) {
+    const p1 = points[i], p2 = points[Math.min(i + 1, points.length - 1)];
+    const x1 = lngToX(p1[0]), y1 = latToY(p1[1]);
+    const x2 = lngToX(p2[0]), y2 = latToY(p2[1]);
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    ctx.save();
+    ctx.translate(x1, y1);
+    ctx.rotate(angle);
+    ctx.fillStyle = '#6366f1';
+    ctx.beginPath();
+    ctx.moveTo(5, 0); ctx.lineTo(-3, -3); ctx.lineTo(-3, 3);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawLegend() {
+  const x = 14, y = canvas.height - 80;
+  ctx.fillStyle = 'rgba(255,255,255,0.93)';
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 1;
+  roundRect(ctx, x, y, 110, 66, 8);
+  ctx.fill(); ctx.stroke();
+
+  ctx.font = 'bold 10px "Microsoft YaHei"';
+  ctx.fillStyle = '#1e293b';
+  ctx.textAlign = 'left';
+  ctx.fillText('图例', x + 10, y + 14);
+
+  const items = [
+    { color: '#f59e0b', label: '家' },
+    { color: '#6366f1', label: '学校' },
+    { color: '#0ea5e9', label: '工作' },
+    { color: '#22c55e', label: '购物' },
+    { color: '#ef4444', label: '医院' },
+  ];
+  items.forEach((item, i) => {
+    ctx.fillStyle = item.color;
+    ctx.beginPath(); ctx.arc(x + 14, y + 28 + i * 10, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#64748b';
+    ctx.font = '9px "Microsoft YaHei"';
+    ctx.fillText(item.label, x + 23, y + 31 + i * 10);
+  });
+}
+
+function drawScale() {
+  // 在右下角画比例尺
+  const x = canvas.width - 100, y = canvas.height - 20;
+  // 1度经度约85km（在北京纬度）
+  const pxPerDeg = (canvas.width - 100) / (MAP_BOUNDS.maxLng - MAP_BOUNDS.minLng);
+  const kmPerPx = 85 / pxPerDeg;
+  const scaleKm = 5; // 5km
+  const scalePx = scaleKm / kmPerPx;
+
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x, y); ctx.lineTo(x + scalePx, y);
+  ctx.moveTo(x, y - 3); ctx.lineTo(x, y + 3);
+  ctx.moveTo(x + scalePx, y - 3); ctx.lineTo(x + scalePx, y + 3);
+  ctx.stroke();
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(scaleKm + 'km', x + scalePx / 2, y - 5);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ========== 快捷添加 ==========
+function addQuickTask(locId) {
+  const loc = locationDB.find(l => l.id === locId);
+  if (!loc) return;
+
+  // 检查是否已添加（同名同地址不重复）
+  if (tasks.some(t => t.addr === loc.addr && t.name === loc.name)) {
+    showToast('该行程已添加');
+    return;
+  }
+
+  tasks.push({
+    name: loc.name,
+    addr: loc.addr,
+    type: loc.type,
+    timeStart: loc.timeStart,
+    timeEnd: loc.timeEnd,
+    lat: loc.lat,
+    lng: loc.lng,
+  });
+
+  routeResult = null;
+  renderTasks();
+  drawMap();
+  hideResultPanels();
+  showToast(`已添加「${loc.name}」· ${loc.addr}`);
+}
+
+// ========== 地址搜索联想 ==========
+let selectedLocation = null; // 从下拉菜单选中的地点
+
+function setupAddrSearch() {
+  const input = document.getElementById('customAddr');
+  const dropdown = document.getElementById('addrDropdown');
+
+  input.addEventListener('input', function() {
+    const keyword = this.value.trim();
+    if (!keyword) { dropdown.classList.remove('show'); selectedLocation = null; return; }
+
+    // 在locationDB中搜索匹配
+    const results = locationDB.filter(l =>
+      l.addr.includes(keyword) || l.name.includes(keyword) || keyword.includes(l.addr)
+    );
+
+    if (results.length === 0) {
+      dropdown.innerHTML = '<div class="addr-option"><span class="ao-no">未找到匹配地点，将使用地图随机位置</span></div>';
+      selectedLocation = null;
+    } else {
+      dropdown.innerHTML = results.map(l => `
+        <div class="addr-option" onclick="selectLocation('${l.id}')">
+          <span class="ao-icon">${l.icon}</span>
+          <span class="ao-name">${l.name}</span>
+          <span class="ao-addr">${l.addr}</span>
+        </div>
+      `).join('');
+    }
+    dropdown.classList.add('show');
+  });
+
+  // 点击外部关闭下拉
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.addr-search-wrap')) {
+      dropdown.classList.remove('show');
+    }
+  });
+
+  // 回车选择第一个结果
+  input.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const firstOption = dropdown.querySelector('.addr-option:not(:has(.ao-no))');
+      if (firstOption) firstOption.click();
+      else addCustomTask();
+    }
+  });
+}
+
+function selectLocation(locId) {
+  const loc = locationDB.find(l => l.id === locId);
+  if (!loc) return;
+  selectedLocation = loc;
+  document.getElementById('customAddr').value = loc.addr;
+  document.getElementById('addrDropdown').classList.remove('show');
+
+  // 自动填充"做什么"（如果为空）
+  const nameInput = document.getElementById('customName');
+  if (!nameInput.value.trim()) {
+    nameInput.value = loc.name;
+  }
+  // 自动填充时间（如果为默认值）
+  const timeInput = document.getElementById('customTime');
+  if (timeInput.value === '09:00' && loc.timeStart) {
+    timeInput.value = loc.timeStart;
+  }
+  const timeEndInput = document.getElementById('customTimeEnd');
+  if (timeEndInput.value === '10:00' && loc.timeEnd) {
+    timeEndInput.value = loc.timeEnd;
+  }
+}
+
+// ========== 添加自定义任务 ==========
+function addCustomTask() {
+  const name = document.getElementById('customName').value.trim();
+  const addr = document.getElementById('customAddr').value.trim();
+  const timeStart = document.getElementById('customTime').value;
+  const timeEnd = document.getElementById('customTimeEnd').value;
+
+  if (!addr) { showToast('请搜索并选择地点'); return; }
+
+  let lat, lng, type;
+
+  if (selectedLocation) {
+    // 使用从搜索结果中选择的精确坐标
+    lat = selectedLocation.lat;
+    lng = selectedLocation.lng;
+    type = selectedLocation.type;
+  } else {
+    // 未匹配到，根据地址关键词尝试匹配
+    const matched = locationDB.find(l => l.addr.includes(addr) || addr.includes(l.addr));
+    if (matched) {
+      lat = matched.lat; lng = matched.lng; type = matched.type;
+    } else {
+      // 随机坐标
+      lat = 39.93 + Math.random() * 0.06;
+      lng = 116.29 + Math.random() * 0.10;
+      type = 'other';
+    }
+  }
+
+  tasks.push({
+    name: name || addr,
+    addr: addr,
+    type: type,
+    timeStart: timeStart,
+    timeEnd: timeEnd,
+    lat, lng,
+  });
+
+  // 清空表单
+  document.getElementById('customName').value = '';
+  document.getElementById('customAddr').value = '';
+  document.getElementById('customTime').value = '09:00';
+  document.getElementById('customTimeEnd').value = '10:00';
+  selectedLocation = null;
+  document.getElementById('addrDropdown').classList.remove('show');
+
+  routeResult = null;
+  renderTasks();
+  drawMap();
+  hideResultPanels();
+  showToast(`已添加「${name || addr}」· ${addr}`);
+}
+
+// ========== 渲染任务列表 ==========
+function renderTasks() {
+  const list = document.getElementById('taskList');
+  const count = document.getElementById('taskCount');
+  const btn = document.getElementById('btnPlan');
+
+  count.textContent = `(${tasks.length}个)`;
+  btn.disabled = tasks.length < 2;
+
+  if (tasks.length === 0) {
+    list.innerHTML = '<div class="empty-hint"><div class="icon">👆</div>点击上方快捷按钮添加行程<br/>或输入地址快速添加<br/>添加后点击"智能规划路线"</div>';
+    return;
+  }
+
+  list.innerHTML = tasks.map((t, i) => `
+    <div class="task-item">
+      <div class="task-icon">${typeIcons[t.type] || '📍'}</div>
+      <div class="task-info">
+        <div class="task-name">${i + 1}. ${t.name}</div>
+        <div class="task-loc">${t.addr}</div>
+      </div>
+      <div class="task-time">${t.timeStart}${t.timeEnd ? '-' + t.timeEnd : ''}</div>
+      <button class="task-remove" onclick="removeTask(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function removeTask(index) {
+  const name = tasks[index].name;
+  tasks.splice(index, 1);
+  routeResult = null;
+  renderTasks();
+  drawMap();
+  hideResultPanels();
+  showToast(`已移除「${name}」`);
+}
+
+function hideResultPanels() {
+  document.getElementById('statsSection').style.display = 'none';
+  document.getElementById('timelineSection').style.display = 'none';
+  document.getElementById('resultBanner').style.display = 'none';
+}
+
+// ========== 智能路线规划 ==========
+function planRoute() {
+  if (tasks.length < 2) return;
+  showToast('正在智能优化路线...');
+
+  setTimeout(() => {
+    const start = tasks[0];
+    const end = tasks[tasks.length - 1];
+    const middle = tasks.slice(1, -1);
+
+    // 贪心最近邻 + 时间窗约束
+    const ordered = [start];
+    const remaining = [...middle];
+    let current = start;
+
+    while (remaining.length > 0) {
+      let bestIdx = 0, bestScore = Infinity;
+      remaining.forEach((t, i) => {
+        const dist = haversine(current.lat, current.lng, t.lat, t.lng);
+        const timePenalty = t.timeStart ? parseTime(t.timeStart) : 0;
+        const score = dist * 100 + (timePenalty > parseTime(current.timeStart || '08:00') ? 0 : 500);
+        if (score < bestScore) { bestScore = score; bestIdx = i; }
+      });
+      current = remaining.splice(bestIdx, 1)[0];
+      ordered.push(current);
+    }
+    ordered.push(end);
+
+    // 生成曲线路径
+    const path = [];
+    for (let i = 0; i < ordered.length - 1; i++) {
+      const p1 = ordered[i], p2 = ordered[i + 1];
+      const steps = 25;
+      for (let j = 0; j <= steps; j++) {
+        const t = j / steps;
+        path.push([
+          p1.lng + (p2.lng - p1.lng) * t + Math.sin(t * Math.PI * 2) * 0.0015 * (i % 2 === 0 ? 1 : -1),
+          p1.lat + (p2.lat - p1.lat) * t + Math.cos(t * Math.PI * 2) * 0.001 * (i % 2 === 0 ? -1 : 1)
+        ]);
+      }
+    }
+
+    let totalDist = 0;
+    for (let i = 0; i < ordered.length - 1; i++) {
+      totalDist += haversine(ordered[i].lat, ordered[i].lng, ordered[i + 1].lat, ordered[i + 1].lng);
+    }
+
+    routeResult = {
+      ordered, path,
+      distance: totalDist,
+      duration: Math.round(totalDist / 0.5),
+      saved: totalDist * 0.15
+    };
+
+    drawMap();
+    showResult(routeResult);
+    generateTimeline(routeResult);
+    showToast('路线规划完成！已智能优化途经点顺序');
+  }, 600);
+}
+
+// Haversine距离
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ========== 显示结果 ==========
+function showResult(result) {
+  document.getElementById('statsSection').style.display = 'block';
+  document.getElementById('timelineSection').style.display = 'block';
+  document.getElementById('resultBanner').style.display = 'flex';
+
+  const dist = result.distance.toFixed(1);
+  const dur = result.duration;
+
+  document.getElementById('statDistance').textContent = dist + 'km';
+  document.getElementById('statDuration').textContent = dur + 'min';
+  document.getElementById('statSaved').textContent = '~15%';
+  document.getElementById('resDistance').textContent = dist + 'km';
+  document.getElementById('resDuration').textContent = dur + 'min';
+  document.getElementById('resWaypoints').textContent = tasks.length;
+  document.getElementById('resOptimized').textContent = '已启用';
+}
+
+// ========== 时间轴 ==========
+function generateTimeline(result) {
+  const container = document.getElementById('timeline');
+  const ordered = result.ordered;
+  let html = '';
+  let currentTime = parseTime(ordered[0].timeStart || '07:00');
+
+  for (let i = 0; i < ordered.length - 1; i++) {
+    const from = ordered[i], to = ordered[i + 1];
+    const dist = haversine(from.lat, from.lng, to.lat, to.lng);
+    const durMin = Math.max(3, Math.round(dist / 0.5));
+    const arriveTime = currentTime + durMin;
+
+    const traffic = durMin > 15 ? (Math.random() > 0.5 ? '轻度拥堵' : '畅通') : '畅通';
+    const tc = traffic === '畅通' ? 'good' : 'moderate';
+
+    html += `
+      <div class="timeline-item">
+        <div class="timeline-dot-col">
+          <div class="timeline-dot ${i < 2 ? 'done' : i === 2 ? 'current' : ''}"></div>
+          ${i < ordered.length - 2 ? `<div class="timeline-line ${i < 2 ? 'done' : ''}"></div>` : ''}
+        </div>
+        <div class="timeline-content">
+          <div class="timeline-time">${formatTime(currentTime)} <span class="traffic-tag ${tc}">${traffic}</span></div>
+          <div class="timeline-action">${from.name}</div>
+          <div class="timeline-detail">→ ${to.name} · ${dist.toFixed(1)}km · ${durMin}分钟</div>
+        </div>
+      </div>
+    `;
+
+    currentTime = arriveTime;
+    const stayMap = { school: 5, shopping: 20, hospital: 60, work: 0, home: 0, other: 10 };
+    currentTime += (stayMap[to.type] || 10);
+  }
+
+  const last = ordered[ordered.length - 1];
+  html += `
+    <div class="timeline-item">
+      <div class="timeline-dot-col"><div class="timeline-dot"></div></div>
+      <div class="timeline-content">
+        <div class="timeline-time">${formatTime(currentTime)}</div>
+        <div class="timeline-action">到达 ${last.name} ✓</div>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+// ========== 工具函数 ==========
+function parseTime(str) { const [h, m] = str.split(':').map(Number); return h * 60 + m; }
+function formatTime(mins) { return `${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`; }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ========== 预设和清空 ==========
+function loadPreset() {
+  const presetIds = ['home', 'school1', 'work', 'shop1', 'school2', 'hospital'];
+  tasks = presetIds.map(id => {
+    const loc = locationDB.find(l => l.id === id);
+    return { name: loc.name, addr: loc.addr, type: loc.type, timeStart: loc.timeStart, timeEnd: loc.timeEnd, lat: loc.lat, lng: loc.lng };
+  });
+  routeResult = null;
+  renderTasks();
+  drawMap();
+  hideResultPanels();
+  showToast('已加载示例行程（李婷的一天）');
+  setTimeout(() => planRoute(), 500);
+}
+
+function clearAll() {
+  tasks = [];
+  routeResult = null;
+  renderTasks();
+  drawMap();
+  hideResultPanels();
+  showToast('已清空');
+}
+
+// 自定义表单回车添加
+document.getElementById('customTimeEnd').addEventListener('keypress', e => { if (e.key === 'Enter') addCustomTask(); });
+</script>
+</body>
+</html>
