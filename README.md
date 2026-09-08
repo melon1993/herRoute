@@ -51,14 +51,7 @@ herRoute/
 
 详细步骤见 [docs/API-Key获取指南.md](./docs/API-Key获取指南.md)
 
-## 比赛信息
 
-本项目参加百度地图开发者创作大赛。
-
-- 奖金池：¥30,000
-- Top 5 路演机会
-- 专属流量曝光支持
 
 ## License
 
-MIT
